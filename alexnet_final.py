@@ -78,8 +78,8 @@ if __name__ == "__main__":
 
         end = timer()
 
-        print(f'Run {i}: {end - start}')
+        print('Run ', i, ':', end - start)
 
         t += (end - start)
     
-    print(f'\nAverage Time Taken: {t/5}')
+    print('\nAverage Time Taken:', t/5)
