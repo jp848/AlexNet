@@ -69,17 +69,15 @@ if __name__ == "__main__":
         print('\nCloud with following Layers :')
         for i, layer in enumerate(all_layers[partition_layer:]):
             print(partition_layer + i , layer)
+
+    iterations = 100
+
+    start = timer()
+
+    for i in range(iterations):
+        print(i)
+        net(prev_output)
+
+    end = timer()
     
-    t = 0.0
-    for i in range(5):
-        start = timer()
-
-        output = net(prev_output)
-
-        end = timer()
-
-        print('Run ', i, ':', end - start)
-
-        t += (end - start)
-    
-    print('\nAverage Time Taken:', t/5)
+    print('\nTime Taken:', (end-start)/iterations)
