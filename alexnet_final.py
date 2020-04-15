@@ -1,16 +1,29 @@
 import torch 
 import torch.nn as nn
 import torchvision
-from torchvision import models
+from torchvision import models, transforms
 from timeit import default_timer as timer
-import argparse
+import os
+import numpy as np
+from PIL import Image
+import json
 
-parser = argparse.ArgumentParser()
-parser.add_argument('partition_layer', action="store", type=int)
-parser.add_argument('-cloud', action='store_true', default=False,
-                    dest='cloud')
+images = []
+path = os.curdir + '/images'
 
-images = torch.zeros(9,3,224,224)
+preprocess = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+
+for image in os.listdir(path):
+    try:
+        input_image = Image.open(path+'/'+image)
+        images.append(preprocess(input_image).unsqueeze(0))
+    except:
+        continue
 
 alexnet_model = models.alexnet(pretrained=True)
 
@@ -26,58 +39,32 @@ all_layers = list(alexnet_model.features.children()) + \
     [nn.AdaptiveAvgPool2d((6, 6)), Flatten()] + \
     list(alexnet_model.classifier.children())
 
-class MobileAlexNet(nn.Module):
-    def __init__(self, partition_layer):
-        super(MobileAlexNet, self).__init__()
-        self.features = self.get_layers(partition_layer)
+class SingleLayer(nn.Module):
+    def __init__(self, layer_index):
+        super(SingleLayer, self).__init__()
+        self.features = nn.Sequential(all_layers[layer_index])
 
-    def get_layers(self, partition_layer):
-        return nn.Sequential(*list(all_layers[:partition_layer]))
-    
-    def forward(self, x):
-        x = self.features(x)
-        return x
-
-class ServerAlexNet(nn.Module):
-    def __init__(self, partition_layer):
-        super(ServerAlexNet, self).__init__()
-        self.features = self.get_layers(partition_layer)
-
-    def get_layers(self, partition_layer):
-        return nn.Sequential(*list(all_layers[partition_layer:]))
-    
     def forward(self, x):
         x = self.features(x)
         return x
 
 if __name__ == "__main__":
-    args = parser.parse_args()
-    partition_layer, is_cloud = args.partition_layer, args.cloud
 
-    if not is_cloud:
-        #mobile device
-        net = MobileAlexNet(partition_layer)
-        prev_output = images
-        print('\nMobile with following Layers :')
-        for i, layer in enumerate(all_layers[:partition_layer]):
-            print(i , layer)
-    else:
-        #cloud
-        net = ServerAlexNet(partition_layer)
-        mobile_net = MobileAlexNet(partition_layer)
-        prev_output = mobile_net(images)
-        print('\nCloud with following Layers :')
-        for i, layer in enumerate(all_layers[partition_layer:]):
-            print(partition_layer + i , layer)
+    prev_output = images
 
-    iterations = 100
+    for layer in range(0,22):
+        print("LAYER : ", layer, all_layers[layer])
+        current_layer = SingleLayer(layer)
 
-    start = timer()
+        start = timer()
 
-    for i in range(iterations):
-        print(i)
-        net(prev_output)
+        for i, image in enumerate(prev_output):
+            prev_output[i] = current_layer(image)
 
-    end = timer()
-    
-    print('\nTime Taken:', (end-start)/iterations)
+        end = timer()
+        
+        # with open('layer' + str(layer) + '.json', 'w') as outfile:
+        #     json.dump(prev_output, outfile)
+
+        print('\nTime Taken:', (end-start)/9811.)
+        print('------------------------------')
