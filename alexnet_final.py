@@ -6,7 +6,6 @@ from timeit import default_timer as timer
 import os
 import numpy as np
 from PIL import Image
-import json
 
 images = []
 path = os.curdir + '/images'
@@ -63,8 +62,6 @@ if __name__ == "__main__":
 
         end = timer()
         
-        # with open('layer' + str(layer) + '.json', 'w') as outfile:
-        #     json.dump(prev_output, outfile)
-
+        torch.save(prev_output, 'tensor' + str(layer) + '.pt')
         print('\nTime Taken:', (end-start)/9811.)
         print('------------------------------')
