@@ -82,12 +82,13 @@ if __name__ == "__main__":
 
     TCP_IP1 = '10.0.2.2'
     TCP_IP2 = '127.0.0.1'
-    TCP_PORT = 8080
+    TCP_PORT1 = 8080
+    TCP_PORT2 = 8081
     s=socket.socket()
 
     if not is_cloud:
         outputs1 = torch.zeros(9,3,224,224)
-        s.connect((TCP_IP1,TCP_PORT))
+        s.connect((TCP_IP1,TCP_PORT1))
         send_x=outputs1.detach().numpy()
         data_input=pickle.dumps(send_x, protocol=pickle.HIGHEST_PROTOCOL)
         s.sendall(data_input)
@@ -96,7 +97,7 @@ if __name__ == "__main__":
         print("data sent to server")
 
         s2=socket.socket()
-        s2.bind((TCP_IP1, TCP_PORT))
+        s2.bind((TCP_IP1, TCP_PORT2))
         print('trying to listen')
         while 1:
             s2.listen(1)
@@ -112,7 +113,7 @@ if __name__ == "__main__":
             print('received from server')
 
     else:
-        s.bind((TCP_IP2, TCP_PORT))
+        s.bind((TCP_IP2, TCP_PORT1))
         cnt = 0
         while 1:
             cnt += 1
@@ -135,8 +136,8 @@ if __name__ == "__main__":
 
             print("data received by server")
             time.sleep(5)
-            s2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s2.connect((TCP_IP2, TCP_PORT))
+            s2 = socket.socket()
+            s2.connect((TCP_IP1, TCP_PORT2))
             print('trying to send')
             data_final=pickle.dumps(output,protocol=pickle.HIGHEST_PROTOCOL)
             s2.sendall(data_final)
