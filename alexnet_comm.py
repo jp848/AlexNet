@@ -9,6 +9,7 @@ from PIL import Image
 import argparse
 import socket
 import pickle
+import time
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-cloud', action='store_true', default=False,
@@ -94,20 +95,21 @@ if __name__ == "__main__":
 
         print("data sent to server")
 
-        s2=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s2=socket.socket()
         s2.bind((TCP_IP1, TCP_PORT))
         print('trying to listen')
-        s2.listen(1)
-
-        conn, addr = s.accept()
-        data = []
-        print('Server: ', addr)
         while 1:
-            output = conn.recv(4096)
-            if not output: break
-            data.append(output)
-        
-        print('received from server')
+            s2.listen(1)
+
+            conn, addr = s2.accept()
+            data = []
+            print('Server: ', addr)
+            while 1:
+                output = conn.recv(4096)
+                if not output: break
+                data.append(output)
+            
+            print('received from server')
 
     else:
         s.bind((TCP_IP2, TCP_PORT))
@@ -132,10 +134,11 @@ if __name__ == "__main__":
             output = torch.from_numpy(inputs_ten)
 
             print("data received by server")
-
+            time.sleep(5)
             s2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s2.connect((TCP_IP2, TCP_PORT))
             print('trying to send')
             data_final=pickle.dumps(output,protocol=pickle.HIGHEST_PROTOCOL)
             s2.sendall(data_final)
+            s2.close()
             print('server done')
