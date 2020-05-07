@@ -13,6 +13,7 @@ import pickle
 parser = argparse.ArgumentParser()
 parser.add_argument('-cloud', action='store_true', default=False,
                     dest='cloud')
+parser.add_argument('-layer', type=int)
 
 images = []
 path = os.curdir + '/images'
@@ -76,10 +77,10 @@ if __name__ == "__main__":
     #     print('Layer', i, t)
 
     args = parser.parse_args()
-    is_cloud = args.cloud
+    is_cloud, layer = args.cloud, args.layer
 
-    TCP_IP1 = '127.0.0.1'
-    TCP_IP2 = '0.0.0.0'
+    TCP_IP1 = '10.0.2.2'
+    TCP_IP2 = '127.0.0.1'
     TCP_PORT = 8080
     s=socket.socket()
 
@@ -93,8 +94,21 @@ if __name__ == "__main__":
 
         print("data sent to server")
 
-    else:
+        s=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind((TCP_IP1, TCP_PORT))
+        s.listen(1)
+
+        conn, addr = s.accept()
+        data = []
+        while 1:
+            output = conn.recv(4096)
+            if not output: break
+            data.append(output)
+        
+        print('received from server')
+
+    else:
+        s.bind((TCP_IP2, TCP_PORT))
         cnt = 0
         while 1:
             cnt += 1
@@ -117,3 +131,8 @@ if __name__ == "__main__":
 
             print("data received by server")
             print(output)
+
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect((TCP_IP1, TCP_PORT))
+            s.sendall([1])
+            print('server done')
