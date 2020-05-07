@@ -10,11 +10,12 @@ import argparse
 import socket
 import pickle
 import time
+from functools import reduce
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-cloud', action='store_true', default=False,
                     dest='cloud')
-parser.add_argument('-layer', type=int)
+parser.add_argument('layer')
 
 images = []
 path = os.curdir + '/images'
@@ -51,75 +52,60 @@ class SingleLayer(nn.Module):
 
 if __name__ == "__main__":
 
-    # prev_output = images
-
-    # layers = [SingleLayer(i) for i in range(0, 22)]
-    # time = [0. for i in range(0,22)]
-
-    # for j, image in enumerate(os.listdir(path)):
-    #     curr_image = preprocess(Image.open(path+'/'+image)).unsqueeze(0)
-    #     time_taken = 0.0
-    #     for i, layer in enumerate(layers):
-    #         start = timer()
-
-    #         curr_image = layer(curr_image)
-
-    #         end = timer()
-
-    #         time[i] += (end-start)
-    #         time_taken += (end-start)
-
-    #     print(j, time_taken)
-
-    # np.divide(time, 9812)
-
-    # for i, t in enumerate(time):
-    #     print(layers[i])
-    #     print('Layer', i, t)
-
     args = parser.parse_args()
-    is_cloud, layer = args.cloud, args.layer
-
-    TCP_IP1 = '10.0.2.2'
-    TCP_IP2 = '127.0.0.1'
-    TCP_PORT1 = 8080
-    s=socket.socket()
+    is_cloud, layer = args.cloud, int(args.layer)
+    layers = [SingleLayer(i) for i in range(0, 22)]
 
     if not is_cloud:
-        outputs1 = torch.zeros(9,3,224,224)
-        s.connect((TCP_IP1,TCP_PORT1))
-        send_x=outputs1.detach().numpy()
-        data_input=pickle.dumps(send_x, protocol=pickle.HIGHEST_PROTOCOL)
-        s.sendall(data_input)
+        TCP_IP1 = '10.0.2.2'
+        # TCP_IP1 = '127.0.0.1'
+        TCP_PORT = 8080
+        
+        process_time = 0.0
+        comm_time = 0.0
 
-        print("data sent to server")
+        for i, image in enumerate(os.listdir(path)):
+            input_image = preprocess(Image.open(path+'/'+image)).unsqueeze(0)
 
-        while 1:
-            s.listen(1)
+            process_start = timer()
 
-            conn, addr = s.accept()
-            data = []
-            print('Server: ', addr)
-            while 1:
-                output = conn.recv(4096)
-                if not output: break
-                data.append(output)
+            output = reduce(lambda o, func: func(o), layers[:layer], input_image)
+
+            process_end = timer()
+
+            #send to server
+            comm_start = timer()
+
+            s=socket.socket()
+            s.connect((TCP_IP1,TCP_PORT))
+            send_x=output.detach().numpy()
+            data_input=pickle.dumps(send_x, protocol=pickle.HIGHEST_PROTOCOL)
+            s.sendall(data_input)
+            s.close()
             
-            break
-        print('received from server')
+            comm_end = timer()
+
+            process_time += (process_end - process_start)
+            comm_time += (comm_end - comm_start)
+
+            print('Image #' + str(i) + ' sent.')
+
+        print("Avg. Process Time:", process_time/len(os.listdir(path)))
+        print("Avg. Comm Time:", comm_time/len(os.listdir(path)))
 
     else:
-        s.bind((TCP_IP2, TCP_PORT1))
-        cnt = 0
+        TCP_IP1 = '127.0.0.1'
+        TCP_IP2 = '127.0.0.1'
+        TCP_PORT = 8080
+        s=socket.socket()
+
+        s.bind((TCP_IP2, TCP_PORT))
+        cnt, process_time = 0, 0.0
         while 1:
             cnt += 1
             s.listen(1)
-            print('server started', cnt)
 
             conn, addr = s.accept()
-
-            print ('Raspberry Device:',addr)
-            
             data = []
             while 1:
                 tensor = conn.recv(4096)
@@ -127,12 +113,17 @@ if __name__ == "__main__":
                 data.append(tensor)
             inputs_ten = pickle.loads(b"".join(data))
 
-            output = torch.from_numpy(inputs_ten)
+            output_mobile = torch.from_numpy(inputs_ten)
 
-            print("data received by server")
-            time.sleep(5)
-            print('trying to send')
-            data_final=pickle.dumps(output,protocol=pickle.HIGHEST_PROTOCOL)
-            s.sendall(data_final)
-            s2.close()
-            print('server done')
+            print("Image #" + str(cnt) + ' received.')
+
+            process_start = timer()
+
+            output = reduce(lambda o, func: func(o), layers[layer:], output_mobile)
+
+            process_end = timer()
+
+            process_time += (process_end - process_start)
+
+            if cnt == len(os.listdir(path)):
+                print("Avg. Process Time:", process_time/cnt)
