@@ -95,11 +95,12 @@ if __name__ == "__main__":
         print("data sent to server")
 
         s=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind((TCP_IP1, TCP_PORT))
+        s.bind((TCP_IP2, TCP_PORT))
         s.listen(1)
 
         conn, addr = s.accept()
         data = []
+        print('Server: ', addr)
         while 1:
             output = conn.recv(4096)
             if not output: break
@@ -134,5 +135,6 @@ if __name__ == "__main__":
 
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((TCP_IP1, TCP_PORT))
-            s.sendall([1])
+            data_final=pickle.dumps(output,protocol=pickle.HIGHEST_PROTOCOL)
+            s.sendall(data_final)
             print('server done')
