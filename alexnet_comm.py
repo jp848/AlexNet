@@ -96,6 +96,7 @@ if __name__ == "__main__":
 
         s=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind((TCP_IP2, TCP_PORT))
+        print('trying to listen')
         s.listen(1)
 
         conn, addr = s.accept()
@@ -131,10 +132,10 @@ if __name__ == "__main__":
             output = torch.from_numpy(inputs_ten)
 
             print("data received by server")
-            print(output)
 
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((TCP_IP1, TCP_PORT))
+            print('trying to send')
             data_final=pickle.dumps(output,protocol=pickle.HIGHEST_PROTOCOL)
             s.sendall(data_final)
             print('server done')
